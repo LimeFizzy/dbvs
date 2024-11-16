@@ -1,0 +1,50 @@
+Table customers {
+  customer_id integer [primary key]
+  
+  name text
+  email text [unique]
+  phone text
+  address_street text
+  address_city text
+  address_country text
+  address_zip_code text
+}
+
+Table products {
+  product_id integer [primary key]
+  
+  name text
+  description text
+  price decimal(10, 2)
+  stock_quantity integer
+}
+
+Table orders {
+  order_id integer [primary key]
+  
+  customer_id integer [not null, ref: > customers.customer_id]
+  order_date timestamp [default: "CURRENT_TIMESTAMP"]
+  status text
+  total_price decimal(10, 2)
+}
+
+Table order_products {
+  id integer [primary key]
+  
+  order_id integer [ref: > orders.order_id]
+  product_id integer [ref: > products.product_id]
+  
+  quantity integer
+  price_at_time_of_order decimal(10, 2)
+  
+  total_price decimal(10, 2) // Relationship attribute
+}
+
+Table payments {
+  payment_id integer [primary key]
+  
+  order_id integer [not null, ref: > orders.order_id] // Weak relationship to order
+  payment_date timestamp [default: "CURRENT_TIMESTAMP"]
+  payment_amount decimal(10, 2)
+  payment_method text
+}

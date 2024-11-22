@@ -16,7 +16,7 @@ Table products {
   name text
   description text
   price decimal(10, 2)
-  stock_quantity integer
+  quantity integer
 }
 
 Table orders {
@@ -26,25 +26,18 @@ Table orders {
   order_date timestamp [default: "CURRENT_TIMESTAMP"]
   status text
   total_price decimal(10, 2)
-}
 
-Table order_products {
-  id integer [primary key]
-  
-  order_id integer [ref: > orders.order_id]
-  product_id integer [ref: > products.product_id]
-  
-  quantity integer
-  price_at_time_of_order decimal(10, 2)
-  
-  total_price decimal(10, 2) // Relationship attribute
-}
-
-Table payments {
-  payment_id integer [primary key]
-  
-  order_id integer [not null, ref: > orders.order_id] // Weak relationship to order
   payment_date timestamp [default: "CURRENT_TIMESTAMP"]
   payment_amount decimal(10, 2)
   payment_method text
 }
+
+Table order_products {
+  order_id integer [ref: > orders.order_id]
+  product_id integer [ref: > products.product_id]
+  
+  quantity integer
+  
+}
+
+

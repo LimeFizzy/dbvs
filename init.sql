@@ -22,7 +22,7 @@ CREATE TABLE lesi9952.products (
 -- Table: lesi9952.orders
 CREATE TABLE lesi9952.orders (
     order_id SERIAL PRIMARY KEY,
-    customer_id INTEGER NOT NULL REFERENCES lesi9952.customers(customer_id),
+    customer_id INTEGER NOT NULL REFERENCES lesi9952.customers(customer_id) ON DELETE CASCADE ON UPDATE RESTRICT,
     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status TEXT NOT NULL CHECK (status IN ('Pending', 'Completed', 'Cancelled')),
     total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0),
@@ -33,8 +33,8 @@ CREATE TABLE lesi9952.orders (
 
 -- Table: lesi9952.order_products
 CREATE TABLE lesi9952.order_products (
-    order_id INTEGER NOT NULL REFERENCES lesi9952.orders(order_id),
-    product_id INTEGER NOT NULL REFERENCES lesi9952.products(product_id),
+    order_id INTEGER NOT NULL REFERENCES lesi9952.orders(order_id) ON DELETE CASCADE ON UPDATE RESTRICT,
+    product_id INTEGER NOT NULL REFERENCES lesi9952.products(product_id) ON DELETE CASCADE ON UPDATE RESTRICT,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     PRIMARY KEY (order_id, product_id)
 );

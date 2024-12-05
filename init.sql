@@ -130,9 +130,8 @@ REFRESH MATERIALIZED VIEW lesi9952.popular_products;
 CREATE OR REPLACE FUNCTION refresh_popular_products()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Refresh the materialized view when order_products changes
     REFRESH MATERIALIZED VIEW lesi9952.popular_products;
-    RETURN NULL; -- Trigger functions that do not modify rows should return NULL
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 

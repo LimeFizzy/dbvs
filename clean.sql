@@ -8,6 +8,9 @@ DROP FUNCTION IF EXISTS enforce_stock();
 DROP TRIGGER IF EXISTS check_total_price ON lesi9952.orders;
 DROP FUNCTION IF EXISTS enforce_total_price();
 
+DROP TRIGGER IF EXISTS update_order_total_price_trigger ON lesi9952.order_products;
+DROP FUNCTION IF EXISTS update_order_total_price();
+
 -- Drop materialized views
 DROP MATERIALIZED VIEW IF EXISTS lesi9952.popular_products;
 

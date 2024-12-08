@@ -145,6 +145,12 @@ public class OrderManagement {
     }
     /********************************************************/
     public static void deleteProductFromOrder(Connection conn) {
+        String getCustomerOrdersQuery = """
+                SELECT o.order_id, o.total_price, o.status, o.order_date
+                FROM lesi9952.orders o
+                JOIN lesi9952.customers c ON o.customer_id = c.customer_id
+                WHERE c.email = ?
+                """;
         String getOrderProductsQuery = """
                 SELECT op.product_id, p.name, op.quantity
                 FROM lesi9952.order_products op
@@ -153,34 +159,72 @@ public class OrderManagement {
                 """;
         String deleteProductQuery = "DELETE FROM lesi9952.order_products WHERE order_id = ? AND product_id = ?";
         Scanner scanner = new Scanner(System.in);
-
+    
         try {
-            System.out.print("Enter order ID: ");
-            int orderId = scanner.nextInt();
-
-            System.out.println("\nOrder Products:");
-            try (PreparedStatement stmt = conn.prepareStatement(getOrderProductsQuery)) {
-                stmt.setInt(1, orderId);
+            // Step 1: Ask for the customer's email
+            System.out.print("Enter customer email: ");
+            String email = scanner.nextLine();
+    
+            // Step 2: Fetch orders related to the provided email
+            try (PreparedStatement stmt = conn.prepareStatement(getCustomerOrdersQuery)) {
+                stmt.setString(1, email);
                 ResultSet rs = stmt.executeQuery();
+                
+                // Step 3: Display the orders related to the customer
+                System.out.println("\nCustomer Orders:");
+                boolean ordersExist = false;
                 while (rs.next()) {
-                    System.out.printf("Product ID: %d | Name: %s | Quantity: %d%n",
-                            rs.getInt("product_id"),
-                            rs.getString("name"),
-                            rs.getInt("quantity"));
+                    ordersExist = true;
+                    System.out.printf("Order ID: %d | Total Price: %.2f | Status: %s | Date: %s%n",
+                            rs.getInt("order_id"),
+                            rs.getBigDecimal("total_price"),
+                            rs.getString("status"),
+                            rs.getTimestamp("order_date"));
                 }
-            }
-
-            System.out.print("\nEnter product ID to delete: ");
-            int productId = scanner.nextInt();
-
-            try (PreparedStatement stmt = conn.prepareStatement(deleteProductQuery)) {
-                stmt.setInt(1, orderId);
-                stmt.setInt(2, productId);
-                int rowsDeleted = stmt.executeUpdate();
-                if (rowsDeleted > 0) {
-                    System.out.println("Product removed from the order.");
-                } else {
-                    System.out.println("Failed to remove the product. Check the IDs.");
+    
+                if (!ordersExist) {
+                    System.out.println("No orders found for this email.");
+                    return;
+                }
+    
+                // Step 4: Ask the user to choose an order ID
+                System.out.print("\nEnter order ID to delete product from: ");
+                int orderId = scanner.nextInt();
+    
+                // Step 5: Show products related to the selected order
+                System.out.println("\nOrder Products:");
+                try (PreparedStatement productStmt = conn.prepareStatement(getOrderProductsQuery)) {
+                    productStmt.setInt(1, orderId);
+                    ResultSet productRs = productStmt.executeQuery();
+                    boolean productsExist = false;
+                    while (productRs.next()) {
+                        productsExist = true;
+                        System.out.printf("Product ID: %d | Name: %s | Quantity: %d%n",
+                                productRs.getInt("product_id"),
+                                productRs.getString("name"),
+                                productRs.getInt("quantity"));
+                    }
+    
+                    if (!productsExist) {
+                        System.out.println("No products found in this order.");
+                        return;
+                    }
+    
+                    // Step 6: Ask for the product ID to delete
+                    System.out.print("\nEnter product ID to delete: ");
+                    int productId = scanner.nextInt();
+    
+                    // Step 7: Delete the selected product from the order
+                    try (PreparedStatement stmtDelete = conn.prepareStatement(deleteProductQuery)) {
+                        stmtDelete.setInt(1, orderId);
+                        stmtDelete.setInt(2, productId);
+                        int rowsDeleted = stmtDelete.executeUpdate();
+                        if (rowsDeleted > 0) {
+                            System.out.println("Product removed from the order.");
+                        } else {
+                            System.out.println("Failed to remove the product. Check the order and product IDs.");
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {

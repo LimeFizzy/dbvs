@@ -140,3 +140,32 @@ CREATE TRIGGER refresh_popular_products_trigger
 AFTER INSERT OR DELETE OR UPDATE ON lesi9952.order_products
 FOR EACH STATEMENT
 EXECUTE FUNCTION refresh_popular_products();
+
+-- Function to update the total price after a product is deleted from an order
+CREATE OR REPLACE FUNCTION update_order_total_price()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_total_price DECIMAL(10, 2);
+BEGIN
+    -- Calculate the new total price by summing the price of remaining products in the order
+    SELECT COALESCE(SUM(p.price * op.quantity), 0)
+    INTO new_total_price
+    FROM lesi9952.order_products op
+    JOIN lesi9952.products p ON op.product_id = p.product_id
+    WHERE op.order_id = OLD.order_id;
+
+    -- Update the total price in the orders table
+    UPDATE lesi9952.orders
+    SET total_price = new_total_price
+    WHERE order_id = OLD.order_id;
+
+    RETURN OLD; -- Returning OLD to indicate that the delete operation is allowed
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update the total price after a product is deleted from an order
+CREATE TRIGGER update_order_total_price_trigger
+AFTER DELETE ON lesi9952.order_products
+FOR EACH ROW
+EXECUTE FUNCTION update_order_total_price();
+

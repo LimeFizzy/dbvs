@@ -29,10 +29,9 @@ public class OrderManagement {
     /********************************************************/
     public static void searchCustomerOrders(Connection conn) {
         String query = """
-                SELECT o.order_id, o.total_price, o.status, o.order_date
-                FROM lesi9952.orders o
-                JOIN lesi9952.customers c ON o.customer_id = c.customer_id
-                WHERE c.email = ?
+                SELECT order_id, total_price, status, order_date
+                FROM lesi9952.customer_orders
+                WHERE customer_name = (SELECT name FROM lesi9952.customers WHERE email = ?)
                 """;
         Scanner scanner = new Scanner(System.in);
 

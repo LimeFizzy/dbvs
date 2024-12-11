@@ -17,7 +17,7 @@ public class OrderManagement {
     public static Connection getConnection() {
         Connection postGresConn = null;
         try {
-            postGresConn = DriverManager.getConnection("jdbc:postgresql://pgsql3.mif/lesi9952", "stud", "stud");
+            postGresConn = DriverManager.getConnection("jdbc:postgresql://pgsql3.mif/studentu", "stud", "stud");
         } catch (SQLException sqle) {
             System.out.println("Couldn't connect to database!");
             sqle.printStackTrace();
@@ -160,16 +160,13 @@ public class OrderManagement {
         Scanner scanner = new Scanner(System.in);
     
         try {
-            // Step 1: Ask for the customer's email
             System.out.print("Enter customer email: ");
             String email = scanner.nextLine();
     
-            // Step 2: Fetch orders related to the provided email
             try (PreparedStatement stmt = conn.prepareStatement(getCustomerOrdersQuery)) {
                 stmt.setString(1, email);
                 ResultSet rs = stmt.executeQuery();
                 
-                // Step 3: Display the orders related to the customer
                 System.out.println("\nCustomer Orders:");
                 boolean ordersExist = false;
                 while (rs.next()) {
@@ -186,11 +183,9 @@ public class OrderManagement {
                     return;
                 }
     
-                // Step 4: Ask the user to choose an order ID
                 System.out.print("\nEnter order ID to delete product from: ");
                 int orderId = scanner.nextInt();
     
-                // Step 5: Show products related to the selected order
                 System.out.println("\nOrder Products:");
                 try (PreparedStatement productStmt = conn.prepareStatement(getOrderProductsQuery)) {
                     productStmt.setInt(1, orderId);
@@ -209,11 +204,9 @@ public class OrderManagement {
                         return;
                     }
     
-                    // Step 6: Ask for the product ID to delete
                     System.out.print("\nEnter product ID to delete: ");
                     int productId = scanner.nextInt();
     
-                    // Step 7: Delete the selected product from the order
                     try (PreparedStatement stmtDelete = conn.prepareStatement(deleteProductQuery)) {
                         stmtDelete.setInt(1, orderId);
                         stmtDelete.setInt(2, productId);
@@ -240,41 +233,106 @@ public class OrderManagement {
                 WHERE c.email = ?
                 """;
         String updateStatusQuery = "UPDATE lesi9952.orders SET status = ? WHERE order_id = ?";
+        String updateProductQuantityQuery = """
+                UPDATE lesi9952.products
+                SET quantity = quantity - (
+                    SELECT op.quantity
+                    FROM lesi9952.order_products op
+                    WHERE op.product_id = lesi9952.products.product_id
+                    AND op.order_id = ?
+                )
+                WHERE product_id IN (
+                    SELECT product_id
+                    FROM lesi9952.order_products
+                    WHERE order_id = ?
+                )
+                """;
+    
         Scanner scanner = new Scanner(System.in);
-
+    
         try {
             System.out.print("Enter customer email: ");
             String email = scanner.nextLine();
-
+    
             System.out.println("\nCustomer Orders:");
             try (PreparedStatement stmt = conn.prepareStatement(getOrderQuery)) {
                 stmt.setString(1, email);
                 ResultSet rs = stmt.executeQuery();
+                boolean ordersExist = false;
                 while (rs.next()) {
+                    ordersExist = true;
                     System.out.printf("Order ID: %d | Current Status: %s%n",
                             rs.getInt("order_id"),
                             rs.getString("status"));
                 }
+    
+                if (!ordersExist) {
+                    System.out.println("No orders found for this email.");
+                    return;
+                }
             }
-
+    
             System.out.print("\nEnter the order ID to update: ");
             int orderId = scanner.nextInt();
-            scanner.nextLine();
-
-            System.out.println("\nAvailable Status Options: Pending, Completed, Cancelled");
-            System.out.print("Enter the new status: ");
-            String newStatus = scanner.nextLine();
-
-            try (PreparedStatement stmt = conn.prepareStatement(updateStatusQuery)) {
-                stmt.setString(1, newStatus);
-                stmt.setInt(2, orderId);
-
-                int rowsUpdated = stmt.executeUpdate();
+    
+            System.out.println("\nAvailable Status Options:");
+            System.out.println("1. Pending");
+            System.out.println("2. Completed");
+            System.out.println("3. Cancelled");
+            System.out.print("Select the new status: ");
+            int statusChoice = scanner.nextInt();
+    
+            String newStatus;
+            switch (statusChoice) {
+                case 1 -> newStatus = "Pending";
+                case 2 -> newStatus = "Completed";
+                case 3 -> newStatus = "Cancelled";
+                default -> {
+                    System.out.println("Invalid status choice. Aborting...");
+                    return;
+                }
+            }
+    
+            conn.setAutoCommit(false);
+            try (PreparedStatement updateStatusStmt = conn.prepareStatement(updateStatusQuery);
+                 PreparedStatement updateProductQuantityStmt = conn.prepareStatement(updateProductQuantityQuery)) {
+    
+                // Update order status
+                updateStatusStmt.setString(1, newStatus);
+                updateStatusStmt.setInt(2, orderId);
+                int rowsUpdated = updateStatusStmt.executeUpdate();
+    
                 if (rowsUpdated > 0) {
                     System.out.println("Order status updated successfully.");
                 } else {
-                    System.out.println("Failed to update the order status. Please check the order ID.");
+                    System.out.println("Failed to update the order status. Rolling back...");
+                    conn.rollback();
+                    return;
                 }
+    
+                // If status is "Completed", update product quantities
+                if ("Completed".equalsIgnoreCase(newStatus)) {
+                    updateProductQuantityStmt.setInt(1, orderId);
+                    updateProductQuantityStmt.setInt(2, orderId);
+    
+                    int rowsAffected = updateProductQuantityStmt.executeUpdate();
+                    if (rowsAffected > 0) {
+                        System.out.println("Product quantities updated successfully.");
+                    } else {
+                        System.out.println("Failed to update product quantities. Rolling back...");
+                        conn.rollback();
+                        return;
+                    }
+                }
+    
+                conn.commit();
+                System.out.println("Transaction committed successfully.");
+            } catch (SQLException e) {
+                System.out.println("Error occurred during the transaction. Rolling back...");
+                conn.rollback();
+                e.printStackTrace();
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             System.out.println("Error updating the order status!");
